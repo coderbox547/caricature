@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
 using System.Text.Json;
 
 namespace CaricatureAPI.Controllers
@@ -44,7 +45,7 @@ namespace CaricatureAPI.Controllers
 
                 using (var content = new MultipartFormDataContent())
                 {
-                    
+
                     content.Add(new StreamContent(photo.OpenReadStream()), "image", photo.FileName);
                     content.Add(new StringContent(type), "type");
 
@@ -53,11 +54,9 @@ namespace CaricatureAPI.Controllers
                     var response = await _httpClient.SendAsync(request);
                     response.EnsureSuccessStatusCode();
 
-                    var responseContent = await response.Content.ReadAsStringAsync();
-                    var responseObject = JsonSerializer.Deserialize<dynamic>(responseContent);
-                    using JsonDocument responseDocument = JsonDocument.Parse(responseContent);
-                    JsonElement root = responseDocument.RootElement;
-                    string imageUrl = root.GetProperty("data").GetProperty("image_url").GetString();
+                    string responseContent = await response.Content.ReadAsStringAsync();
+                    ApiResponse responseObject = JsonConvert.DeserializeObject<ApiResponse>(responseContent);
+                    string imageUrl = responseObject.Data.ImageUrl;
 
                     var responseImageFilePath = Path.Combine(folderPath, $"{folderName}_{type}_response_image.jpg");
 
@@ -102,15 +101,14 @@ namespace CaricatureAPI.Controllers
 
                 request.Content = content;
 
-                var response = _httpClient.SendAsync(request).Result;
+                var response = await _httpClient.SendAsync(request);
 
                 response.EnsureSuccessStatusCode();
 
-                string responseContent = response.Content.ReadAsStringAsync().Result;
-                var responseObject = JsonSerializer.Deserialize<dynamic>(responseContent);
-                using JsonDocument responseDocument = JsonDocument.Parse(responseContent);
-                JsonElement root = responseDocument.RootElement;
-                string imageUrl = root.GetProperty("data").GetProperty("image_url").GetString();
+                string responseContent = await response.Content.ReadAsStringAsync();
+                ApiResponse responseObject = JsonConvert.DeserializeObject<ApiResponse>(responseContent);
+                string imageUrl = responseObject.Data.ImageUrl;
+
                 var responseImageFilePath = Path.Combine(folderPath, $"{folderName}__response_image.jpg");
 
                 using (var imageResponse = await _httpClient.GetAsync(imageUrl))
@@ -121,6 +119,49 @@ namespace CaricatureAPI.Controllers
                 return Ok(imageUrl);
             }
         }
+   
+
+
+        public class ApiResponse
+        {
+            [JsonProperty("data")]
+            public ApiData Data { get; set; }
+
+            [JsonProperty("error_code")]
+            public int ErrorCode { get; set; }
+
+            [JsonProperty("error_detail")]
+            public ErrorDetail ErrorDetail { get; set; }
+
+            [JsonProperty("log_id")]
+            public string LogId { get; set; }
+
+            [JsonProperty("request_id")]
+            public string RequestId { get; set; }
+        }
+
+        public class ApiData
+        {
+            [JsonProperty("image_url")]
+            public string ImageUrl { get; set; }
+        }
+
+        public class ErrorDetail
+        {
+            [JsonProperty("status_code")]
+            public int StatusCode { get; set; }
+
+            [JsonProperty("code")]
+            public string Code { get; set; }
+
+            [JsonProperty("code_message")]
+            public string CodeMessage { get; set; }
+
+            [JsonProperty("message")]
+            public string Message { get; set; }
+        }
+
+
 
     }
 

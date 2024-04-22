@@ -16,8 +16,8 @@ namespace CaricatureAPI.Controllers
 
         }
 
-        [HttpPost("upload")]
-        public async Task<IActionResult> UploadPhoto(IFormFile photo)
+        [HttpPost("upload/{type}")]
+        public async Task<IActionResult> UploadPhoto(IFormFile photo, string type)
         {
             try
             {
@@ -44,7 +44,7 @@ namespace CaricatureAPI.Controllers
 
                 using (var content = new MultipartFormDataContent())
                 {
-                    var type = "pixar";
+                    type = "pixar";
                     content.Add(new StreamContent(photo.OpenReadStream()), "image", photo.FileName);
                     content.Add(new StringContent(type), "type");
 
@@ -82,60 +82,59 @@ namespace CaricatureAPI.Controllers
         {
 
             var uploadsFolderPath = Path.Combine(Directory.GetCurrentDirectory(), "Uploads");
-            
 
-           
+
+
             var folderPath = Path.Combine(uploadsFolderPath, folderName);
             Directory.CreateDirectory(folderPath);
 
 
-           
+
 
             string apiUrl = "https://www.ailabapi.com/api/cutout/portrait/portrait-background-removal";
 
-            using (var client = new HttpClient())
+
+            var request = new HttpRequestMessage(HttpMethod.Post, apiUrl);
+            request.Headers.Add("ailabapi-api-key", apiKey);
+
+            using (var content = new MultipartFormDataContent())
             {
-                var request = new HttpRequestMessage(HttpMethod.Post, apiUrl);
-                request.Headers.Add("ailabapi-api-key", apiKey);
+                content.Add(new StreamContent(image.OpenReadStream()), "image", image.FileName);
+                content.Add(new StringContent("whiteBK"), "return_form");
 
-                using (var content = new MultipartFormDataContent())
+                request.Content = content;
+
+                var response = _httpClient.SendAsync(request).Result;
+
+                response.EnsureSuccessStatusCode();
+
+                string responseContent = response.Content.ReadAsStringAsync().Result;
+                var responseObject = JsonSerializer.Deserialize<dynamic>(responseContent);
+                using JsonDocument responseDocument = JsonDocument.Parse(responseContent);
+                JsonElement root = responseDocument.RootElement;
+                string imageUrl = root.GetProperty("data").GetProperty("image_url").GetString();
+                var responseImageFilePath = Path.Combine(folderPath, $"{folderName}__response_image.jpg");
+
+                using (var imageResponse = await _httpClient.GetAsync(imageUrl))
+                using (var fileStream = new FileStream(responseImageFilePath, FileMode.Create))
                 {
-                    content.Add(new StreamContent(image.OpenReadStream()), "image", image.FileName);
-                    content.Add(new StringContent("whiteBK"), "return_form");
-
-                    request.Content = content;
-
-                    var response = client.SendAsync(request).Result;
-
-                    response.EnsureSuccessStatusCode();
-
-                    string responseContent = response.Content.ReadAsStringAsync().Result;
-                    var responseObject = JsonSerializer.Deserialize<dynamic>(responseContent);
-                    using JsonDocument responseDocument = JsonDocument.Parse(responseContent);
-                    JsonElement root = responseDocument.RootElement;
-                    string imageUrl = root.GetProperty("data").GetProperty("image_url").GetString();
-                    var responseImageFilePath = Path.Combine(folderPath, $"{folderName}__response_image.jpg");
-
-                    using (var imageResponse = await _httpClient.GetAsync(imageUrl))
-                    using (var fileStream = new FileStream(responseImageFilePath, FileMode.Create))
-                    {
-                        await imageResponse.Content.CopyToAsync(fileStream);
-                    }
-                    return Ok(imageUrl);
+                    await imageResponse.Content.CopyToAsync(fileStream);
                 }
+                return Ok(imageUrl);
             }
-
         }
-
-
-
-
-     
-
-
 
     }
 
+
+
+
+
+
+
+
 }
+
+
 
 

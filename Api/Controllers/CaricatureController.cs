@@ -44,7 +44,7 @@ namespace CaricatureAPI.Controllers
 
                 using (var content = new MultipartFormDataContent())
                 {
-                    type = "pixar";
+                    
                     content.Add(new StreamContent(photo.OpenReadStream()), "image", photo.FileName);
                     content.Add(new StringContent(type), "type");
 
@@ -87,8 +87,6 @@ namespace CaricatureAPI.Controllers
 
             var folderPath = Path.Combine(uploadsFolderPath, folderName);
             Directory.CreateDirectory(folderPath);
-
-
 
 
             string apiUrl = "https://www.ailabapi.com/api/cutout/portrait/portrait-background-removal";

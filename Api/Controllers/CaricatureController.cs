@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Api.Models;
+using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using System.Text.Json;
 
@@ -17,162 +18,154 @@ namespace CaricatureAPI.Controllers
 
         }
 
-        [HttpPost("upload/{type}")]
-        public async Task<IActionResult> UploadPhoto(IFormFile photo, string type)
+        [HttpPost("upload")]
+        public async Task<IActionResult> UploadPhoto(IFormFile image)
         {
-            try
+
+
+            if (image == null || image.Length == 0)
             {
-                var uploadsFolderPath = Path.Combine(Directory.GetCurrentDirectory(), "Uploads");
-                if (!Directory.Exists(uploadsFolderPath))
-                {
-                    Directory.CreateDirectory(uploadsFolderPath);
-                }
-
-                var folderName = Guid.NewGuid().ToString();
-                var folderPath = Path.Combine(uploadsFolderPath, folderName);
-                Directory.CreateDirectory(folderPath);
-
-                var filePath = Path.Combine(folderPath, photo.FileName);
-
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await photo.CopyToAsync(stream);
-                }
-
-                var apiUrl = "https://www.ailabapi.com/api/portrait/effects/portrait-animation";
-                var request = new HttpRequestMessage(HttpMethod.Post, apiUrl);
-                request.Headers.Add("ailabapi-api-key", apiKey);
-
-                using (var content = new MultipartFormDataContent())
-                {
-
-                    content.Add(new StreamContent(photo.OpenReadStream()), "image", photo.FileName);
-                    content.Add(new StringContent(type), "type");
-
-                    request.Content = content;
-
-                    var response = await _httpClient.SendAsync(request);
-                    response.EnsureSuccessStatusCode();
-
-                    string responseContent = await response.Content.ReadAsStringAsync();
-                    ApiResponse responseObject = JsonConvert.DeserializeObject<ApiResponse>(responseContent);
-                    string imageUrl = responseObject.Data.ImageUrl;
-
-                    var responseImageFilePath = Path.Combine(folderPath, $"{folderName}_{type}_response_image.jpg");
-
-                    using (var imageResponse = await _httpClient.GetAsync(imageUrl))
-                    using (var fileStream = new FileStream(responseImageFilePath, FileMode.Create))
-                    {
-                        await imageResponse.Content.CopyToAsync(fileStream);
-                    }
-
-
-
-                    return Ok(new { ResponseImageFilePath = responseImageFilePath, Imagename = folderName });
-                }
+                return BadRequest("No image provided.");
             }
-            catch (Exception ex)
+            var fileExtension = Path.GetExtension(image.FileName).ToLower();
+
+            if (!IsAllowedExtension(fileExtension))
             {
-                return StatusCode(500, $"Internal server error: {ex}");
+                return BadRequest("Only JPG and PNG files are allowed.");
             }
+            var uploadsFolderPath = Path.Combine(Directory.GetCurrentDirectory(), "Uploads");
+            if (!Directory.Exists(uploadsFolderPath))
+            {
+                Directory.CreateDirectory(uploadsFolderPath);
+            }
+
+            var uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(image.FileName);
+            var filePath = Path.Combine(uploadsFolderPath, uniqueFileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await image.CopyToAsync(stream);
+            }
+
+            return Ok(new { filepath = filePath });
+      
+
+
         }
-        [HttpPost("RemoveBackground/{folderName}")]
-        public async Task<IActionResult> RemoveBackground(IFormFile image, string folderName)
-        {
 
+        [HttpPost("GenerateCaricature/{type}")]
+        public async Task<IActionResult> GenerateCaricature(IFormFile image, string type)
+        {
+            if (image == null || image.Length == 0)
+            {
+                return BadRequest("No image provided.");
+            }
+            var fileExtension = Path.GetExtension(image.FileName).ToLower();
+            if (!IsAllowedExtension(fileExtension))
+            {
+                return BadRequest("Only JPG and PNG files are allowed.");
+            }
+            var fileName = Guid.NewGuid().ToString();
             var uploadsFolderPath = Path.Combine(Directory.GetCurrentDirectory(), "Uploads");
 
+            var apiUrl = "https://www.ailabapi.com/api/portrait/effects/portrait-animation";
+            var request_caracrature = new HttpRequestMessage(HttpMethod.Post, apiUrl);
+            request_caracrature.Headers.Add("ailabapi-api-key", apiKey);
 
-
-            var folderPath = Path.Combine(uploadsFolderPath, folderName);
-            Directory.CreateDirectory(folderPath);
-
-
-            string apiUrl = "https://www.ailabapi.com/api/cutout/portrait/portrait-background-removal";
-
-
-            var request = new HttpRequestMessage(HttpMethod.Post, apiUrl);
-            request.Headers.Add("ailabapi-api-key", apiKey);
-
-            using (var content = new MultipartFormDataContent())
+            using (var content_caracrature = new MultipartFormDataContent())
             {
-                content.Add(new StreamContent(image.OpenReadStream()), "image", image.FileName);
-                content.Add(new StringContent("whiteBK"), "return_form");
+                content_caracrature.Add(new StreamContent(image.OpenReadStream()), "image", image.FileName);
+                content_caracrature.Add(new StringContent(type), "type");
 
-                request.Content = content;
+                request_caracrature.Content = content_caracrature;
 
-                var response = await _httpClient.SendAsync(request);
+                var response_caracrature = await _httpClient.SendAsync(request_caracrature);
+                response_caracrature.EnsureSuccessStatusCode();
 
-                response.EnsureSuccessStatusCode();
+                string responseContent = await response_caracrature.Content.ReadAsStringAsync();
+                var responseObject = JsonConvert.DeserializeObject<ApiResponse>(responseContent);
 
-                string responseContent = await response.Content.ReadAsStringAsync();
-                ApiResponse responseObject = JsonConvert.DeserializeObject<ApiResponse>(responseContent);
-                string imageUrl = responseObject.Data.ImageUrl;
-
-                var responseImageFilePath = Path.Combine(folderPath, $"{folderName}__response_image.jpg");
-
-                using (var imageResponse = await _httpClient.GetAsync(imageUrl))
-                using (var fileStream = new FileStream(responseImageFilePath, FileMode.Create))
+                if (responseObject != null && responseObject.Data != null && !string.IsNullOrEmpty(responseObject.Data.ImageUrl))
                 {
-                    await imageResponse.Content.CopyToAsync(fileStream);
+                    string imageUrl = responseObject.Data.ImageUrl;
+                    var caricatureImageFilePath = Path.Combine(uploadsFolderPath, $"{fileName}_{type}_caricature_image.jpg");
+
+                    using (var imageResponse = await _httpClient.GetAsync(imageUrl))
+                    using (var fileStream = new FileStream(caricatureImageFilePath, FileMode.Create))
+                    {
+                        await imageResponse.Content.CopyToAsync(fileStream);
+
+                        await fileStream.FlushAsync();
+                        fileStream.Close();
+                    }
+
+                    // Background removal
+                    var apiUrl_bgremoval = "https://www.ailabapi.com/api/cutout/portrait/portrait-background-removal";
+                    var request_bgremoval = new HttpRequestMessage(HttpMethod.Post, apiUrl_bgremoval);
+                    request_bgremoval.Headers.Add("ailabapi-api-key", apiKey);
+
+                    var content_bgremoval = new MultipartFormDataContent();
+
+                    using (var fileStreamContent = new FileStream(caricatureImageFilePath, FileMode.Open))
+                    {
+                        content_bgremoval.Add(new StreamContent(fileStreamContent), "image", "response_image.jpg");
+                        content_bgremoval.Add(new StringContent("whiteBK"), "return_form");
+
+                        request_bgremoval.Content = content_bgremoval;
+
+                        var response_bgremoval = await _httpClient.SendAsync(request_bgremoval);
+                        response_bgremoval.EnsureSuccessStatusCode();
+
+                        string responseContentRemoveBg = await response_bgremoval.Content.ReadAsStringAsync();
+                        var responseObjectRemoveBg = JsonConvert.DeserializeObject<ApiResponse>(responseContentRemoveBg);
+
+                        if (responseObjectRemoveBg != null && responseObjectRemoveBg.Data != null && !string.IsNullOrEmpty(responseObjectRemoveBg.Data.ImageUrl))
+                        {
+                            string finalImageUrl = responseObjectRemoveBg.Data.ImageUrl;
+                            var finalResponseImageFilePath = Path.Combine(uploadsFolderPath, $"{fileName}_{type}_final_image.jpg");
+
+                            using (var imageResponseRemoveBg = await _httpClient.GetAsync(finalImageUrl))
+                            using (var fileStream2 = new FileStream(finalResponseImageFilePath, FileMode.Create))
+                            {
+                                await imageResponseRemoveBg.Content.CopyToAsync(fileStream2);
+                            }
+                            CaricatureResponse caricatureResponse = new CaricatureResponse
+                            {
+                                CaricatureImage = responseObject.Data.ImageUrl,
+                                FinalImage = responseObjectRemoveBg.Data.ImageUrl,
+                                FinalImagePath = finalResponseImageFilePath,
+                                CaricatureImagePath = caricatureImageFilePath
+                            };
+                            return Ok(caricatureResponse);
+                        }
+                    }
+
                 }
-                return Ok(imageUrl);
+
+                return BadRequest("Failed to process the image.");
             }
+
         }
-   
-
-
-        public class ApiResponse
+        private bool IsAllowedExtension(string fileExtension)
         {
-            [JsonProperty("data")]
-            public ApiData Data { get; set; }
-
-            [JsonProperty("error_code")]
-            public int ErrorCode { get; set; }
-
-            [JsonProperty("error_detail")]
-            public ErrorDetail ErrorDetail { get; set; }
-
-            [JsonProperty("log_id")]
-            public string LogId { get; set; }
-
-            [JsonProperty("request_id")]
-            public string RequestId { get; set; }
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png" };
+            return allowedExtensions.Contains(fileExtension);
         }
-
-        public class ApiData
-        {
-            [JsonProperty("image_url")]
-            public string ImageUrl { get; set; }
-        }
-
-        public class ErrorDetail
-        {
-            [JsonProperty("status_code")]
-            public int StatusCode { get; set; }
-
-            [JsonProperty("code")]
-            public string Code { get; set; }
-
-            [JsonProperty("code_message")]
-            public string CodeMessage { get; set; }
-
-            [JsonProperty("message")]
-            public string Message { get; set; }
-        }
-
 
 
     }
-
-
-
-
-
-
-
-
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
 

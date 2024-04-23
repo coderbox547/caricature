@@ -46,8 +46,8 @@ namespace CaricatureAPI.Controllers
             {
                 await image.CopyToAsync(stream);
             }
-
-            return Ok(new { filepath = filePath });
+            string domainFilePath = $"{Request.Scheme}://{Request.Host}/Uploads/{uniqueFileName}";
+            return Ok(new { filepath = domainFilePath });
       
 
 
@@ -65,7 +65,9 @@ namespace CaricatureAPI.Controllers
             {
                 return BadRequest("Only JPG and PNG files are allowed.");
             }
-            var fileName = Guid.NewGuid().ToString();
+            var cracrature_uniqueFileName = Guid.NewGuid().ToString() + $"{type}_caracrature_image.jpg";
+            var finalimage_uniqueFileName = Guid.NewGuid().ToString() + $"{type}_final_image.jpg";
+
             var uploadsFolderPath = Path.Combine(Directory.GetCurrentDirectory(), "Uploads");
 
             var apiUrl = "https://www.ailabapi.com/api/portrait/effects/portrait-animation";
@@ -88,7 +90,7 @@ namespace CaricatureAPI.Controllers
                 if (responseObject != null && responseObject.Data != null && !string.IsNullOrEmpty(responseObject.Data.ImageUrl))
                 {
                     string imageUrl = responseObject.Data.ImageUrl;
-                    var caricatureImageFilePath = Path.Combine(uploadsFolderPath, $"{fileName}_{type}_caricature_image.jpg");
+                    var caricatureImageFilePath = Path.Combine(uploadsFolderPath, cracrature_uniqueFileName);
 
                     using (var imageResponse = await _httpClient.GetAsync(imageUrl))
                     using (var fileStream = new FileStream(caricatureImageFilePath, FileMode.Create))
@@ -122,19 +124,23 @@ namespace CaricatureAPI.Controllers
                         if (responseObjectRemoveBg != null && responseObjectRemoveBg.Data != null && !string.IsNullOrEmpty(responseObjectRemoveBg.Data.ImageUrl))
                         {
                             string finalImageUrl = responseObjectRemoveBg.Data.ImageUrl;
-                            var finalResponseImageFilePath = Path.Combine(uploadsFolderPath, $"{fileName}_{type}_final_image.jpg");
+                            var finalResponseImageFilePath = Path.Combine(uploadsFolderPath, finalimage_uniqueFileName);
 
                             using (var imageResponseRemoveBg = await _httpClient.GetAsync(finalImageUrl))
                             using (var fileStream2 = new FileStream(finalResponseImageFilePath, FileMode.Create))
                             {
                                 await imageResponseRemoveBg.Content.CopyToAsync(fileStream2);
                             }
+
+
+                            string caricature_ImageDomainPath = $"{Request.Scheme}://{Request.Host}/Uploads/{cracrature_uniqueFileName}";
+                            string finalImageDomainPath = $"{Request.Scheme}://{Request.Host}/Uploads/{finalimage_uniqueFileName}";
                             CaricatureResponse caricatureResponse = new CaricatureResponse
                             {
                                 CaricatureImage = responseObject.Data.ImageUrl,
                                 FinalImage = responseObjectRemoveBg.Data.ImageUrl,
-                                FinalImagePath = finalResponseImageFilePath,
-                                CaricatureImagePath = caricatureImageFilePath
+                                FinalImagePath = finalImageDomainPath,
+                                CaricatureImagePath = caricature_ImageDomainPath
                             };
                             return Ok(caricatureResponse);
                         }

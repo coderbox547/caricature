@@ -1,4 +1,5 @@
-﻿using Api.Models;
+﻿using Api.Controllers;
+using Api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using System.Text.Json;
@@ -7,7 +8,7 @@ namespace CaricatureAPI.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class CaricatureController : ControllerBase
+    public class CaricatureController : BaseController
     {
         private readonly HttpClient _httpClient;
         private readonly string apiKey = "Pw8598NOLBLeFugcZtXCWn1lPCcRV4374aj0WhDEqem6Vb69jpBI1hHD3S2fUxUQ";
@@ -54,11 +55,12 @@ namespace CaricatureAPI.Controllers
 
         }
 
-        [HttpPost("GenerateCaricature/{folderName}/{type}")]
+        [HttpPost("GenerateCaricature")]
         public async Task<IActionResult> GenerateCaricature(string folderName, string type)
         {
             var uploadsFolderPath = Path.Combine(Directory.GetCurrentDirectory(), "Uploads", folderName);
             var existingfileType = Path.Combine(uploadsFolderPath, $"{type}.jpg");
+            var caricratureResponse = new CaricatureResponse();
 
             if (!Directory.Exists(uploadsFolderPath))
             {
@@ -66,8 +68,12 @@ namespace CaricatureAPI.Controllers
             }
             if (System.IO.File.Exists(existingfileType))
             {
-                return Ok(existingfileType);
+                var relativePath = existingfileType.Replace(Directory.GetCurrentDirectory(), "").Replace("\\", "/").TrimStart('/');
+                var imageUrl = $"{Request.Scheme}://{Request.Host}/{relativePath}";
+                caricratureResponse.Imageurl = imageUrl;
+                return Success(caricratureResponse);
             }
+
             var orginalFilePath = Path.Combine(uploadsFolderPath, "originalImage.jpg");
 
             if (!System.IO.File.Exists(orginalFilePath))
@@ -104,13 +110,53 @@ namespace CaricatureAPI.Controllers
                         await imageResponse.Content.CopyToAsync(fileStream);
                         await fileStream.FlushAsync();
                     }
-                    return Ok(imageUrl);
+                    caricratureResponse.Imageurl = imageUrl;
+
+                    return Success(caricratureResponse);
                 }
                 else
                 {
                     return BadRequest("Error in Image processing.");
                 }
             }
+        }
+
+        [HttpPost("GenerateImage")]
+        public async Task<IActionResult> GenerateImage(string imageUrl)
+        {
+
+            var apiUrl_bgremoval = "https://www.ailabapi.com/api/cutout/portrait/portrait-background-removal";
+            var request = new HttpRequestMessage(HttpMethod.Post, apiUrl_bgremoval);
+            request.Headers.Add("ailabapi-api-key", apiKey);
+
+            var content = new MultipartFormDataContent();
+
+            using (var imageStream = await _httpClient.GetStreamAsync(imageUrl))
+            {
+                content.Add(new StreamContent(imageStream), "image", "response_image.jpg");
+                content.Add(new StringContent("whiteBK"), "return_form");
+
+                request.Content = content;
+
+                var response = await _httpClient.SendAsync(request);
+                response.EnsureSuccessStatusCode();
+
+                string responseContentRemoveBg = await response.Content.ReadAsStringAsync();
+                var objectResponse = JsonConvert.DeserializeObject<ApiResponse>(responseContentRemoveBg);
+
+                if (objectResponse != null && objectResponse.Data != null && !string.IsNullOrEmpty(objectResponse.Data.ImageUrl))
+                {
+                    var finalreponse = new CaricatureResponse
+                    {
+                        Imageurl = objectResponse.Data.ImageUrl
+
+                    };
+
+                    return Success(finalreponse);
+                }
+            }
+
+            return BadRequest("Failed to remove background from the image.");
         }
 
 

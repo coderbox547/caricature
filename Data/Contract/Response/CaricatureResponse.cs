@@ -1,4 +1,4 @@
-﻿namespace Api.Models
+﻿namespace Data.Contract.Response
 {
     public class CaricatureResponse
     {

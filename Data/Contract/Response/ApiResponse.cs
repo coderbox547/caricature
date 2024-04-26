@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace Api.Models
+namespace Data.Contract
 {
     public class ApiResponse
     {

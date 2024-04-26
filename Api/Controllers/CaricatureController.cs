@@ -1,5 +1,7 @@
 ﻿using Api.Controllers;
-using Api.Models;
+
+using Data.Contract;
+using Data.Contract.Response;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using System.Text.Json;
@@ -154,9 +156,12 @@ namespace CaricatureAPI.Controllers
 
                     return Success(finalreponse);
                 }
-            }
+               
 
-            return BadRequest("Failed to remove background from the image.");
+            }
+            return BadRequest("Failed to remove background from the image");
+
+
         }
 
 

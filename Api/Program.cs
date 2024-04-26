@@ -1,8 +1,4 @@
-using Api.Extensions;
-using Data;
-using Data.Domain;
-using Data.Managers;
-using Data.Repository.Services;
+
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -54,7 +50,6 @@ app.UseStaticFiles(new StaticFileOptions
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseMiddleware<LoggingMiddleware>();
 
 
 

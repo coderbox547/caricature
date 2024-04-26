@@ -2,7 +2,7 @@
 {
     public class CaricatureResponse
     {
-        public string Imageurl { get; set; }
+        public string ImageUrl { get; set; }
        
     }
     

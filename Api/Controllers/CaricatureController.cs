@@ -1,6 +1,7 @@
 ﻿using Api.Controllers;
 
 using Data.Contract;
+using Data.Contract.Request;
 using Data.Contract.Response;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
@@ -70,7 +71,7 @@ namespace CaricatureAPI.Controllers
             {
                 var relativePath = existingfileType.Replace(Directory.GetCurrentDirectory(), "").Replace("\\", "/").TrimStart('/');
                 var imageUrl = $"{Request.Scheme}://{Request.Host}/{relativePath}";
-                caricratureResponse.Imageurl = imageUrl;
+                caricratureResponse.ImageUrl = imageUrl;
                 return Success(caricratureResponse);
             }
 
@@ -110,7 +111,7 @@ namespace CaricatureAPI.Controllers
                         await imageResponse.Content.CopyToAsync(fileStream);
                         await fileStream.FlushAsync();
                     }
-                    caricratureResponse.Imageurl = imageUrl;
+                    caricratureResponse.ImageUrl = imageUrl;
 
                     return Success(caricratureResponse);
                 }
@@ -122,7 +123,7 @@ namespace CaricatureAPI.Controllers
         }
 
         [HttpPost("GenerateImage")]
-        public async Task<IActionResult> GenerateImage(test model)
+        public async Task<IActionResult> GenerateImage(GenerateImageRequest model)
         {
 
             var apiUrl_bgremoval = "https://www.ailabapi.com/api/cutout/portrait/portrait-background-removal";
@@ -131,7 +132,7 @@ namespace CaricatureAPI.Controllers
 
             var content = new MultipartFormDataContent();
 
-            using (var imageStream = await _httpClient.GetStreamAsync(model.ImageURL))
+            using (var imageStream = await _httpClient.GetStreamAsync(model.ImageUrl))
             {
                 content.Add(new StreamContent(imageStream), "image", "response_image.jpg");
                 content.Add(new StringContent("whiteBK"), "return_form");
@@ -148,7 +149,7 @@ namespace CaricatureAPI.Controllers
                 {
                     var finalreponse = new CaricatureResponse
                     {
-                        Imageurl = objectResponse.Data.ImageUrl
+                        ImageUrl = objectResponse.Data.ImageUrl
 
                     };
 
@@ -160,7 +161,6 @@ namespace CaricatureAPI.Controllers
             return BadRequest("Failed to remove background from the image");
 
 
-            throw new Exception("Failed to remove background from the image.");
         }
 
 

@@ -26,13 +26,13 @@ namespace CaricatureAPI.Controllers
 
             if (image == null || image.Length == 0)
             {
-                return BadRequest("No image provided.");
+                throw new Exception("No image provided.");
             }
             var fileExtension = Path.GetExtension(image.FileName).ToLower();
 
             if (!IsAllowedExtension(fileExtension))
             {
-                return BadRequest("Only JPG and PNG files are allowed.");
+                throw new Exception("Only JPG and PNG files are allowed.");
             }
             var uploadsFolderPath = Path.Combine(Directory.GetCurrentDirectory(), "Uploads");
             if (!Directory.Exists(uploadsFolderPath))
@@ -49,13 +49,11 @@ namespace CaricatureAPI.Controllers
             {
                 await image.CopyToAsync(stream);
             }
-            return Ok(new { folderName = folderName });
 
-
-
+            return Success(new { folderName = folderName });
         }
 
-        [HttpPost("GenerateCaricature")]
+        [HttpPost("GenerateCaricature/{folderName}/{type}")]
         public async Task<IActionResult> GenerateCaricature(string folderName, string type)
         {
             var uploadsFolderPath = Path.Combine(Directory.GetCurrentDirectory(), "Uploads", folderName);
@@ -64,7 +62,7 @@ namespace CaricatureAPI.Controllers
 
             if (!Directory.Exists(uploadsFolderPath))
             {
-                return NotFound("Folder not found");
+                throw new Exception("Folder not found");
             }
             if (System.IO.File.Exists(existingfileType))
             {
@@ -78,7 +76,7 @@ namespace CaricatureAPI.Controllers
 
             if (!System.IO.File.Exists(orginalFilePath))
             {
-                return NotFound("File not found.");
+                throw new Exception("File not found.");
             }
 
             var apiUrl = "https://www.ailabapi.com/api/portrait/effects/portrait-animation";
@@ -116,13 +114,13 @@ namespace CaricatureAPI.Controllers
                 }
                 else
                 {
-                    return BadRequest("Error in Image processing.");
+                    throw new Exception("Error in Image processing.");
                 }
             }
         }
 
         [HttpPost("GenerateImage")]
-        public async Task<IActionResult> GenerateImage(string imageUrl)
+        public async Task<IActionResult> GenerateImage(test model)
         {
 
             var apiUrl_bgremoval = "https://www.ailabapi.com/api/cutout/portrait/portrait-background-removal";
@@ -131,7 +129,7 @@ namespace CaricatureAPI.Controllers
 
             var content = new MultipartFormDataContent();
 
-            using (var imageStream = await _httpClient.GetStreamAsync(imageUrl))
+            using (var imageStream = await _httpClient.GetStreamAsync(model.ImageURL))
             {
                 content.Add(new StreamContent(imageStream), "image", "response_image.jpg");
                 content.Add(new StringContent("whiteBK"), "return_form");
@@ -156,7 +154,7 @@ namespace CaricatureAPI.Controllers
                 }
             }
 
-            return BadRequest("Failed to remove background from the image.");
+            throw new Exception("Failed to remove background from the image.");
         }
 
 
@@ -167,6 +165,12 @@ namespace CaricatureAPI.Controllers
         }
 
 
+    }
+
+
+    public class test
+    {
+        public string ImageURL { get; set; }
     }
 }
 

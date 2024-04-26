@@ -155,10 +155,10 @@ namespace CaricatureAPI.Controllers
 
                     return Success(finalreponse);
                 }
-               
+
 
             }
-            return BadRequest("Failed to remove background from the image");
+            throw new Exception("Failed to remove background from the image");
 
 
         }

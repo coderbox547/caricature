@@ -126,7 +126,7 @@ namespace CaricatureAPI.Controllers
         public async Task<IActionResult> GenerateImage(GenerateImageRequest model)
         {
 
-            var apiUrl_bgremoval = "https://www.ailabapi.com/api/cutout/portrait/portrait-background-removal";
+            var apiUrl_bgremoval = "https://www.ailabapi.com/api/cutout/general/universal-background-removal";
             var request = new HttpRequestMessage(HttpMethod.Post, apiUrl_bgremoval);
             request.Headers.Add("ailabapi-api-key", apiKey);
 
@@ -135,7 +135,7 @@ namespace CaricatureAPI.Controllers
             using (var imageStream = await _httpClient.GetStreamAsync(model.ImageUrl))
             {
                 content.Add(new StreamContent(imageStream), "image", "response_image.jpg");
-                content.Add(new StringContent("whiteBK"), "return_form");
+                content.Add(new StringContent(""), "return_form");
 
                 request.Content = content;
 
